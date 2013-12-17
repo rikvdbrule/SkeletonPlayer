@@ -3,6 +3,7 @@
 //     Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
 //------------------------------------------------------------------------------
+using Kinect.Toolbox.Record;
 
 namespace Microsoft.Samples.Kinect.SkeletonBasics
 {
@@ -10,6 +11,7 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
     using System.Windows;
     using System.Windows.Media;
     using Microsoft.Kinect;
+
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -81,12 +83,24 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
         /// </summary>
         private DrawingImage imageSource;
 
+        private int frame = 0;
+        private SkeletonPlaybackManager manager;
+
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
         /// </summary>
         public MainWindow()
         {
             InitializeComponent();
+            FilePath.Text = Path.Combine(Directory.GetCurrentDirectory(), "pp_1_skeleton.data");
+            manager = new SkeletonPlaybackManager(this);
+
+        }
+
+        private void OnPlayback(object sender, RoutedEventArgs e)
+        {
+            manager.SkeletonFile = FilePath.Text;
+            manager.Start();
         }
 
         /// <summary>
@@ -164,7 +178,7 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
                 this.sensor.SkeletonStream.Enable();
 
                 // Add an event handler to be called whenever there is new color frame data
-                this.sensor.SkeletonFrameReady += this.SensorSkeletonFrameReady;
+                //this.sensor.SkeletonFrameReady += this.SensorSkeletonFrameReady;
 
                 // Start the sensor!
                 try
@@ -196,23 +210,9 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
             }
         }
 
-        /// <summary>
-        /// Event handler for Kinect sensor's SkeletonFrameReady event
-        /// </summary>
-        /// <param name="sender">object sending the event</param>
-        /// <param name="e">event arguments</param>
-        private void SensorSkeletonFrameReady(object sender, SkeletonFrameReadyEventArgs e)
-        {
-            Skeleton[] skeletons = new Skeleton[0];
 
-            using (SkeletonFrame skeletonFrame = e.OpenSkeletonFrame())
-            {
-                if (skeletonFrame != null)
-                {
-                    skeletons = new Skeleton[skeletonFrame.SkeletonArrayLength];
-                    skeletonFrame.CopySkeletonDataTo(skeletons);
-                }
-            }
+        private void ProcessSkeletons(Skeleton[] skeletons)
+        {
 
             using (DrawingContext dc = this.drawingGroup.Open())
             {
@@ -244,6 +244,32 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
                 // prevent drawing outside of our render area
                 this.drawingGroup.ClipGeometry = new RectangleGeometry(new Rect(0.0, 0.0, RenderWidth, RenderHeight));
             }
+        }
+
+        /// <summary>
+        /// Event handler for Kinect sensor's SkeletonFrameReady event
+        /// </summary>
+        /// <param name="sender">object sending the event</param>
+        /// <param name="e">event arguments</param>
+        private void SensorSkeletonFrameReady(object sender, SkeletonFrameReadyEventArgs e)
+        {
+            using (SkeletonFrame skeletonFrame = e.OpenSkeletonFrame())
+            {
+                Skeleton[] skeletons = new Skeleton[0];
+                if (skeletonFrame != null)
+                {
+                    skeletons = new Skeleton[skeletonFrame.SkeletonArrayLength];
+                    skeletonFrame.CopySkeletonDataTo(skeletons);
+                }
+                ProcessSkeletons(skeletons);
+            }
+        }
+
+        internal void ReplayFrameReady(object sender, ReplaySkeletonFrameReadyEventArgs e)
+        {
+            frame += 1;
+            FrameNumber.Text = "Frame Number: " + frame;
+            ProcessSkeletons(e.SkeletonFrame.Skeletons);
         }
 
         /// <summary>
